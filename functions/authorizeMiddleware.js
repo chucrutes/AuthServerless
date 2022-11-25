@@ -1,18 +1,39 @@
 const AWS = require('aws-sdk');
 const jwt = require('jsonwebtoken');
 
-const authToken = require('../config');
+const { authToken, _ } = require('../config');
 const response = require('../response');
 
+function generateAuthResponse(principalId, effect, routeArn) {
+    const policyDocument = generatePolicyDocument(effect, routeArn)
+
+    return {
+        principalId,
+        policyDocument
+    };
+}
+
+function generatePolicyDocument(effect, routeArn) {
+    if (!effect || !routeArn) return null
+
+    const policyDocument = {
+        Version: "2020-10-17",
+        Statement: [
+            {
+                Action: "execute-api:Invoke",
+                Effect: effect,
+                Resource: routeArn
+            }
+        ]
+    }
+
+    return policyDocument
+}
+
 module.exports.handle = async (event, context) => {
+    const dynamoDB = new AWS.DynamoDB.DocumentClient();
     try {
-        const authorization = event.headers.authorization
-
-        if (!authorization) {
-            throw new Error('Token não encontrado')
-        }
-
-        const [_, token] = authorization.split(" ")
+        const token = event.headers.authorization
 
         if (!token) {
             throw new Error('Token não encontrado')
@@ -33,7 +54,7 @@ module.exports.handle = async (event, context) => {
             throw new Error('Token inválido')
         }
 
-        return next()
+        return response(200, { decodedToken: Tokinho })
 
     } catch (error) {
         return response(401, { error: error.message })

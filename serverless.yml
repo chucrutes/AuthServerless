@@ -7,13 +7,17 @@ provider:
   name: aws
   runtime: nodejs14.x
   region: us-east-1
+  logs:
+    httpApi: true
   environment:
     DYNAMODB_USER_TABLE: ${self:service}-UserTable-${sls:stage}
     AUTH_TOKEN: 6e936e340530f5efb670baa93a1dda4b8e8d4c19222a39333bd16c065a100e10
     REFRESH_TOKEN: fdaa0b5225058ac1b118d525a839ef56122e0dbcea0bd2a55f3e3dc66fcea9bb
   httpApi:
+    payload: '2.0'
+    cors: true
     authorizers:
-      myAuthorizer:
+      customAuthorizer:
         type: request
         functionName: authorizeMiddleware
   iam:
@@ -46,6 +50,10 @@ resources:
 functions:
   authorizeMiddleware:
     handler: functions/authorizeMiddleware.handle
+    events:
+      - httpApi:
+          path: /t
+          method: get
     layers:
       - { Ref: NodeModulesLambdaLayer }
   authenticate:
@@ -62,8 +70,8 @@ functions:
       - httpApi:
           path: /teste
           method: get
-          authorizer:
-            name: myAuthorizer
+          # authorizer:
+            # name: customAuthorizer
 
 layers:
   NodeModules:

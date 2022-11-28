@@ -20,6 +20,7 @@ provider:
       customAuthorizer:
         type: request
         functionName: authorizeMiddleware
+        
   iam:
     role:
       statements:
@@ -50,10 +51,6 @@ resources:
 functions:
   authorizeMiddleware:
     handler: functions/authorizeMiddleware.handle
-    events:
-      - httpApi:
-          path: /t
-          method: get
     layers:
       - { Ref: NodeModulesLambdaLayer }
   authenticate:
@@ -70,8 +67,8 @@ functions:
       - httpApi:
           path: /teste
           method: get
-          # authorizer:
-            # name: customAuthorizer
+          authorizer:
+            name: customAuthorizer
 
 layers:
   NodeModules:

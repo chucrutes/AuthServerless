@@ -2,62 +2,61 @@ const AWS = require('aws-sdk');
 const jwt = require('jsonwebtoken');
 
 const { authToken, _ } = require('../config');
-const response = require('../response');
 
-function generateAuthResponse(principalId, effect, routeArn) {
-    const policyDocument = generatePolicyDocument(effect, routeArn)
 
-    return {
-        principalId,
-        policyDocument
-    };
-}
-
-function generatePolicyDocument(effect, routeArn) {
-    if (!effect || !routeArn) return null
-
-    const policyDocument = {
-        Version: "2020-10-17",
-        Statement: [
-            {
-                Action: "execute-api:Invoke",
-                Effect: effect,
-                Resource: routeArn
-            }
-        ]
+function generatePolicyDocument(effect, routeArn, userId, context) {
+    if (!effect || !routeArn) {
+        return null
     }
 
-    return policyDocument
+    const policy = {
+        principalId: userId,
+        policyDocument: {
+            Version: '2012-10-17',
+            Statement: [
+                {
+                    Action: 'execute-api:Invoke',
+                    Effect: effect,
+                    Resource: routeArn,
+                },
+            ],
+        },
+        context,
+    };
+
+    return policy
 }
 
-module.exports.handle = async (event, context) => {
+module.exports.handle = (event, context, callback) => {
     const dynamoDB = new AWS.DynamoDB.DocumentClient();
+    const routeArn = event.routeArn
     try {
         const token = event.headers.authorization
 
         if (!token) {
             throw new Error('Token não encontrado')
         }
-
-        const Tokinho = jwt.verify(token, authToken.secret)
+        
+        const decodedToken = jwt.verify(token, authToken.secret)
         const params = {
             TableName: process.env.DYNAMODB_USER_TABLE,
             FilterExpression: "primary_key = :primary_key",
             ProjectionExpression: "primary_key, email",
             ExpressionAttributeValues: {
-                ":primary_key": Tokinho.user_id
+                ":primary_key": decodedToken.user_id
             }
         }
-        const result = await dynamoDB.scan(params).promise();
-
+        const result = dynamoDB.scan(params).promise();
+        
         if (result.Items == 0) {
             throw new Error('Token inválido')
         }
-
-        return response(200, { decodedToken: Tokinho })
-
+        const policy = generatePolicyDocument("Allow", routeArn, decodedToken.user_id, context)
+        
+        return callback(null, policy)
+        
     } catch (error) {
-        return response(401, { error: error.message })
+        return callback("Unauthorized", null)
     }
-
+    
 }

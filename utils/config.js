@@ -6,5 +6,4 @@ const refreshToken = {
     secret: String(process.env.REFRESH_TOKEN),
     expiresIn: '3600'
 }
-
 module.exports = {authToken, refreshToken}

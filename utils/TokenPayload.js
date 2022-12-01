@@ -4,5 +4,4 @@ const TokenPayload = {
     iat: Number,
     exp: Number
 }
-
 module.exports = TokenPayload

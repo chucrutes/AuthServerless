@@ -1,0 +1,77 @@
+org: tmelo387
+app: shows-auth
+service: shows-auth
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+  logs:
+    httpApi: true
+  environment:
+    DYNAMODB_USER_TABLE: ${self:service}-UserTable-${sls:stage}
+    AUTH_TOKEN: 6e936e340530f5efb670baa93a1dda4b8e8d4c19222a39333bd16c065a100e10
+    REFRESH_TOKEN: fdaa0b5225058ac1b118d525a839ef56122e0dbcea0bd2a55f3e3dc66fcea9bb
+  httpApi:
+    payload: '2.0'
+    cors: true
+    authorizers:
+      customAuthorizer:
+        type: request
+        functionName: authorizeMiddleware
+        
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - 'dynamodb:PutItem'
+            - 'dynamodb:Get*'
+            - 'dynamodb:Scan*'
+            - 'dynamodb:UpdateItem'
+            - 'dynamodb:DeleteItem'
+            - 'dynamodb:Query'
+          Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-UserTable-${sls:stage}
+
+resources:
+  Resources:
+    UserTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: primary_key
+            AttributeType: S
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: primary_key
+            KeyType: HASH
+        TableName: ${self:service}-UserTable-${sls:stage}
+
+functions:
+  authorizeMiddleware:
+    handler: functions/authorizeMiddleware.handle
+    layers:
+      - { Ref: NodeModulesLambdaLayer }
+  authenticate:
+    handler: functions/auth.handle
+    events:
+      - httpApi:
+          path: /auth
+          method: get
+    layers:
+      - { Ref: NodeModulesLambdaLayer }
+  justAGet:
+    handler: functions/justAGet.handle
+    events:
+      - httpApi:
+          path: /teste
+          method: get
+          authorizer:
+            name: customAuthorizer
+
+layers:
+  NodeModules:
+    path: layer
+    compatibleRuntimes:
+      - nodejs14.x

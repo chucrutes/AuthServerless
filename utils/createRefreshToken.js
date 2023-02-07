@@ -1,7 +1,5 @@
 const jwt = require('jsonwebtoken');
-const {authToken, _} = require('./config');
-
-
+const {_, refreshToken} = require('./config');
 
 module.exports = function createToken(id, role) {
     const token = jwt.sign(
@@ -9,11 +7,10 @@ module.exports = function createToken(id, role) {
             user_id: id,
             user_role: role
         },
-        authToken.secret,
+        refreshToken.secret,
         {
-            expiresIn: authToken.expiresIn
+            expiresIn: refreshToken.expiresIn
         }
     )
-
     return token
 }

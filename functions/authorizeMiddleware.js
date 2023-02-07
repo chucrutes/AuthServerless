@@ -1,7 +1,6 @@
-const AWS = require('aws-sdk');
 const jwt = require('jsonwebtoken');
-
-const { authToken, _ } = require('../config');
+const { authToken, _ } = require('../utils/config');
+const { getItem } = require('../utils/dynamodb');
 
 
 function generatePolicyDocument(effect, routeArn, userId, context) {
@@ -27,8 +26,7 @@ function generatePolicyDocument(effect, routeArn, userId, context) {
     return policy
 }
 
-module.exports.handle = (event, context, callback) => {
-    const dynamoDB = new AWS.DynamoDB.DocumentClient();
+module.exports.handle = async (event, context, callback) => {
     const routeArn = event.routeArn
     try {
         const token = event.headers.authorization
@@ -40,13 +38,15 @@ module.exports.handle = (event, context, callback) => {
         const decodedToken = jwt.verify(token, authToken.secret)
         const params = {
             TableName: process.env.DYNAMODB_USER_TABLE,
-            FilterExpression: "primary_key = :primary_key",
-            ProjectionExpression: "primary_key, email",
+            KeyConditionExpression: '#primary_key = :primary_key',
+            ExpressionAttributeNames: {
+                '#primary_key':'primary_key',
+              },
             ExpressionAttributeValues: {
                 ":primary_key": decodedToken.user_id
             }
         }
-        const result = dynamoDB.scan(params).promise();
+       const result = await getItem(params)
         
         if (result.Items == 0) {
             throw new Error('Token inválido')
